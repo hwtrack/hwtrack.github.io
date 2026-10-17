@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Homework Tracker",
+  "version": "1.2.1",
+  "description": "Plan weekly homework, prioritize due dates, maintain streaks, and earn XP.",
+  "permissions": ["storage"],
+  "action": { "default_title": "Open Homework Tracker" },
+  "background": { "service_worker": "background.js" }
+}
