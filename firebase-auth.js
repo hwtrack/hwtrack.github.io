@@ -1,0 +1,13 @@
+/* Google sign-in + cloud sync setup:
+   1. Create a Firebase project at https://console.firebase.google.com/
+   2. Add a Web App, enable Authentication > Google, and create a Firestore database.
+   3. Copy the web app config into firebase-config.js (template provided).
+   4. In Firestore rules, restrict each user's document to request.auth.uid == userId.
+   Until configured, the site safely keeps data in this browser. */
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { firebaseConfig } from './firebase-config.js';
+const $=id=>document.getElementById(id);const ready=!!firebaseConfig.apiKey&&firebaseConfig.apiKey!=='PASTE_API_KEY_HERE';
+if(!ready){$('authStatus').textContent='Saved on this device';$('googleSignIn').title='Set up Firebase to enable Google sign-in and cloud sync';$('googleSignIn').addEventListener('click',()=>alert('Google sign-in needs a free Firebase project setup. Follow FIREBASE_SETUP.txt included with this website. Your local data will keep working meanwhile.'));}
+else{const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),provider=new GoogleAuthProvider();let user=null,saveTimer;const path=()=>doc(db,'users',user.uid,'homework','main');$('googleSignIn').addEventListener('click',async()=>{try{await signInWithPopup(auth,provider)}catch(e){alert('Google sign-in did not finish: '+e.message)}});$('signOut').addEventListener('click',()=>signOut(auth));onAuthStateChanged(auth,async u=>{user=u;$('googleSignIn').classList.toggle('hidden',!!u);$('signOut').classList.toggle('hidden',!u);$('authStatus').textContent=u?`Signed in as ${u.displayName||u.email}`:'Saved on this device';if(!u)return;try{const snap=await getDoc(path());if(snap.exists()){const data=snap.data();window.dispatchEvent(new CustomEvent('homework-cloud-loaded',{detail:data}));}else await sync();}catch(e){console.error(e);alert('Signed in, but cloud sync could not load. Check Firestore setup and rules.')}});async function sync(){if(!user)return;const assignments=JSON.parse(localStorage.getItem('homeworkAssignments')||'[]'),timetable=JSON.parse(localStorage.getItem('schoolTimetable')||'{}');await setDoc(path(),{assignments,timetable,updatedAt:Date.now()})}window.addEventListener('homework-data-changed',()=>{if(!user)return;clearTimeout(saveTimer);saveTimer=setTimeout(()=>sync().catch(e=>{console.error(e);alert('Cloud save failed. Your browser copy is still saved.')}),400)});}
